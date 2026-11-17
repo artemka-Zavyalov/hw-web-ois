@@ -1,60 +1,20 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
+
+from app.routers import catalog, events, system
+
+TAGS = [
+    {"name": "Мероприятия", "description": "Афиша: создание, просмотр, изменение и удаление."},
+    {"name": "Справочники", "description": "Клубы и аудитории."},
+    {"name": "Служебное", "description": "Проверка, что сервис жив."},
+]
 
 app = FastAPI(
     title="WEB-ОИС API",
-    description="API студенческой афиши мероприятий",
-    version="0.1.0"
+    description="API студенческой афиши мероприятий. Бизнес-правила BR-1…BR-10 — в docs/tz.md.",
+    version="0.2.0",
+    openapi_tags=TAGS,
 )
 
-EVENTS = [
-    {"id": 1, "title": "Как устроен поиск Яндекса", "club": "IT-клуб", "room": "Аудитория 203"},
-    {"id": 2, "title": "Турнир по шахматам", "club": "Шахматный клуб", "room": "Аудитория 311"}
-]
-
-CLUBS = [
-    {"id": 1, "name": "IT-клуб", "description": "Встречи и мероприятия для студентов, интересующихся программированием и технологиями."},
-    {"id": 2, "name": "Шахматный клуб", "description": "Тренировки, турниры и свободные партии по шахматам."},
-    {"id": 3, "name": "Киноклуб", "description": "Совместные просмотры и обсуждение фильмов."},
-]
-
-ROOMS = [
-    {"id": 1, "name": "Аудитория 203", "building": "Главный корпус", "capacity": 30},
-    {"id": 2, "name": "Аудитория 311", "building": "Главный корпус", "capacity": 24},
-    {"id": 3, "name": "Конференц-зал", "building": "Корпус Б", "capacity": 80},
-]
-
-
-@app.get("/api/health")
-def health():
-    return {"status": "ok"}
-
-
-@app.get("/api/events")
-def list_events():
-    return EVENTS
-
-
-@app.get("/api/events/{event_id}")
-def get_event(event_id: int):
-    for event in EVENTS:
-        if event["id"] == event_id:
-            return event
-    raise HTTPException(status_code=404, detail="Мероприятие не найдено")
-
-
-@app.get("/api/clubs")
-def list_clubs():
-    return CLUBS
-
-
-@app.get("/api/clubs/{club_id}")
-def get_club(club_id: int):
-    for club in CLUBS:
-        if club["id"] == club_id:
-            return club
-    raise HTTPException(status_code=404, detail="Клуб не найден")
-
-
-@app.get("/api/rooms")
-def list_rooms():
-    return ROOMS
+app.include_router(system.router)
+app.include_router(catalog.router)
+app.include_router(events.router)
