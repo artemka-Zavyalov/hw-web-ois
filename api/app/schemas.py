@@ -1,14 +1,4 @@
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
-
-
-class ClubCreate(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    name: str = Field(
-        min_length=2,
-        max_length=100,
-        examples=["Клуб робототехники"],
-    )
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 
 class Club(BaseModel):

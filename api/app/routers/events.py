@@ -46,48 +46,25 @@ def check_business_rules(data: dict, event_id: int | None = None) -> None:
             )
 
 
-@router.get(
-    "",
-    response_model=EventPage,
-    summary="Список мероприятий",
-    description="Возвращает мероприятия по возрастанию времени начала. Фильтры можно сочетать друг с другом и с пагинацией.",
-    responses={
-        422: {"model": ErrorResponse, "description": "Некорректные параметры запроса"},
-    },
-)
+@router.get("", response_model=EventPage, summary="Список мероприятий")
 def list_events(
-    club_id: Annotated[int | None, Query(description="Только мероприятия этого клуба", examples=[1])] = None,
-    room_id: Annotated[int | None, Query(description="Только мероприятия в этой аудитории", examples=[1])] = None,
-    q: Annotated[
-        str | None,
-        Query(
-            min_length=2,
-            max_length=50,
-            description="Поиск по подстроке в названии мероприятия без учёта регистра",
-            examples=["поиск"],
-        ),
-    ] = None,
-    date_from: Annotated[date | None, Query(description="Начиная с даты, включительно", examples=["2026-11-20"])] = None,
-    date_to: Annotated[date | None, Query(description="По дату, включительно", examples=["2026-11-30"])] = None,
-    page: Annotated[int, Query(ge=1, description="Номер страницы", examples=[1])] = 1,
-    size: Annotated[int, Query(ge=1, le=100, description="Мероприятий на странице", examples=[20])] = 20,
+    club_id: Annotated[int | None, Query(description="Только мероприятия этого клуба")] = None,
+    date_from: Annotated[date | None, Query(description="Начиная с даты, включительно")] = None,
+    date_to: Annotated[date | None, Query(description="По дату, включительно")] = None,
+    page: Annotated[int, Query(ge=1, description="Номер страницы")] = 1,
+    size: Annotated[int, Query(ge=1, le=100, description="Мероприятий на странице")] = 20,
 ):
+    """Мероприятия по возрастанию времени начала. Фильтры можно сочетать."""
     events = sorted(storage.EVENTS.values(), key=lambda e: e["starts_at"])
     if club_id is not None:
         events = [e for e in events if e["club_id"] == club_id]
-    if room_id is not None:
-        events = [e for e in events if e["room_id"] == room_id]
-    if q is not None:
-        query = q.casefold()
-        events = [e for e in events if query in e["title"].casefold()]
     if date_from is not None:
         events = [e for e in events if e["starts_at"].date() >= date_from]
     if date_to is not None:
         events = [e for e in events if e["starts_at"].date() <= date_to]
 
-    total = len(events)
     start = (page - 1) * size
-    return {"items": events[start : start + size], "total": total, "page": page, "size": size}
+    return {"items": events[start : start + size], "total": len(events), "page": page, "size": size}
 
 
 @router.get("/{event_id}", response_model=EventRead, responses=NOT_FOUND, summary="Одно мероприятие")
