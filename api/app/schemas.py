@@ -1,12 +1,16 @@
-from pydantic import AwareDatetime, BaseModel, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, model_validator, ConfigDict
 
 
 class Club(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
 
 
 class Room(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     building: str
@@ -26,15 +30,12 @@ class EventBase(BaseModel):
 class EventCreate(EventBase):
     @model_validator(mode="after")
     def check_time_order(self):
-        # BR-7: окончание позже начала
         if self.ends_at <= self.starts_at:
             raise ValueError("Время окончания должно быть позже времени начала")
         return self
 
 
 class EventUpdate(BaseModel):
-    """Все поля необязательны: меняется только то, что прислали."""
-
     title: str | None = Field(default=None, min_length=3, max_length=200)
     description: str | None = Field(default=None, max_length=5000)
     room_id: int | None = None
@@ -45,6 +46,7 @@ class EventUpdate(BaseModel):
 
 class EventRead(EventBase):
     id: int
+    free_seats: int = Field(examples=[38])
 
 
 class EventPage(BaseModel):
@@ -56,3 +58,10 @@ class EventPage(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str = Field(examples=["Мероприятие не найдено"])
+
+
+class RegistrationRead(BaseModel):
+    id: int
+    event_id: int
+    user_id: int
+    status: str
