@@ -3,9 +3,12 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 
 from app.db import SessionLocal
-from app.models import Club, Event, Registration, Room, Tag, User
+from app.models import Club, Event, Registration, Room, User
+from app.security import hash_password
 
 TOMSK = timezone(timedelta(hours=7))
+
+DEMO_PASSWORD = "webois-demo"
 
 
 def nov(day: int, hour: int, minute: int = 0) -> datetime:
@@ -18,13 +21,16 @@ def main() -> None:
             print("В базе уже есть данные — ничего не загружаю. Начать с нуля: make db-reset")
             return
 
-        admin = User(email="admin@web-ois.local", full_name="Администратор Системы", password_hash="-", role="admin")
-        irina = User(email="it.club@web-ois.local", full_name="Ирина Котова", password_hash="-", role="organizer")
-        gleb = User(email="chess@web-ois.local", full_name="Глеб Ферзев", password_hash="-", role="organizer")
-        anna = User(email="anna@web-ois.local", full_name="Анна Смирнова", password_hash="-")
-        boris = User(email="boris@web-ois.local", full_name="Борис Ковалёв", password_hash="-")
-        vera = User(email="vera@web-ois.local", full_name="Вера Лебедева", password_hash="-")
-        denis = User(email="denis@web-ois.local", full_name="Денис Орлов", password_hash="-")
+        def person(email: str, full_name: str, role: str = "student") -> User:
+            return User(email=email, full_name=full_name, role=role, password_hash=hash_password(DEMO_PASSWORD))
+
+        admin = person("admin@web-ois.local", "Администратор Системы", "admin")
+        irina = person("it.club@web-ois.local", "Ирина Котова", "organizer")
+        gleb = person("chess@web-ois.local", "Глеб Ферзев", "organizer")
+        anna = person("anna@web-ois.local", "Анна Смирнова")
+        boris = person("boris@web-ois.local", "Борис Ковалёв")
+        vera = person("vera@web-ois.local", "Вера Лебедева")
+        denis = person("denis@web-ois.local", "Денис Орлов")
         session.add_all([admin, irina, gleb, anna, boris, vera, denis])
 
         it_club = Club(name="IT-клуб", slug="it-club", description="Лекции и мастер-классы по разработке", organizers=[irina])
@@ -64,17 +70,6 @@ def main() -> None:
         )
         session.add_all([yandex, tournament, git, stalker, cancelled])
 
-        lecture = Tag(name="лекция")
-        it = Tag(name="IT")
-        tournament_tag = Tag(name="турнир")
-        cinema_tag = Tag(name="кино")
-        session.add_all([lecture, it, tournament_tag, cinema_tag])
-
-        yandex.tags.extend([lecture, it])
-        git.tags.append(it)
-        tournament.tags.append(tournament_tag)
-        stalker.tags.append(cinema_tag)
-
         session.add_all([
             Registration(event=yandex, user=anna),
             Registration(event=yandex, user=boris),
@@ -83,10 +78,8 @@ def main() -> None:
         ])
 
         session.commit()
-        print(
-            "Демо-данные загружены: 7 пользователей, 3 клуба, 3 аудитории, "
-            "5 мероприятий, 4 записи, 4 тега"
-        )
+        print("Демо-данные загружены: 7 пользователей, 3 клуба, 3 аудитории, 5 мероприятий, 4 записи")
+        print(f"Пароль всех демо-пользователей: {DEMO_PASSWORD}")
 
 
 if __name__ == "__main__":

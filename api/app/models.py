@@ -11,7 +11,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import ExcludeConstraint
+from sqlalchemy.dialects.postgresql import ExcludeConstraint, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -21,13 +21,6 @@ club_organizers = Table(
     Base.metadata,
     Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("club_id", ForeignKey("clubs.id", ondelete="CASCADE"), primary_key=True),
-)
-
-event_tags = Table(
-    "event_tags",
-    Base.metadata,
-    Column("event_id", ForeignKey("events.id", ondelete="CASCADE"), primary_key=True),
-    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
 )
 
 
@@ -50,6 +43,9 @@ class User(Base):
         secondary=club_organizers, back_populates="organizers"
     )
 
+    def __str__(self) -> str:
+        return f"{self.full_name} <{self.email}>"
+
 
 class Club(Base):
     __tablename__ = "clubs"
@@ -63,6 +59,9 @@ class Club(Base):
         secondary=club_organizers, back_populates="clubs"
     )
 
+    def __str__(self) -> str:
+        return self.name
+
 
 class Room(Base):
     __tablename__ = "rooms"
@@ -71,21 +70,10 @@ class Room(Base):
     id: Mapped[int] = mapped_column(Identity(always=True), primary_key=True)
     name: Mapped[str] = mapped_column(unique=True)
     building: Mapped[str]
-    capacity: Mapped[int] = mapped_column(Integer)
+    capacity: Mapped[int] = mapped_column(Integer)  # integer, а не bigint: число мест
 
-
-class Tag(Base):
-    __tablename__ = "tags"
-    __table_args__ = (
-        CheckConstraint("length(name) BETWEEN 1 AND 50", name="name_check"),
-    )
-
-    id: Mapped[int] = mapped_column(Identity(always=True), primary_key=True)
-    name: Mapped[str] = mapped_column(unique=True)
-
-    events: Mapped[list["Event"]] = relationship(
-        secondary=event_tags, back_populates="tags"
-    )
+    def __str__(self) -> str:
+        return self.name
 
 
 class Event(Base):
@@ -94,8 +82,7 @@ class Event(Base):
         CheckConstraint("length(title) BETWEEN 3 AND 200", name="title_check"),
         CheckConstraint("capacity > 0", name="capacity_check"),
         CheckConstraint(
-            "status IN ('pending', 'published', 'rejected', 'cancelled')",
-            name="status_check",
+            "status IN ('pending', 'published', 'rejected', 'cancelled')", name="status_check"
         ),
         CheckConstraint("ends_at > starts_at", name="time_order"),
         ExcludeConstraint(
@@ -124,9 +111,9 @@ class Event(Base):
     club: Mapped[Club] = relationship()
     room: Mapped[Room] = relationship()
     author: Mapped[User] = relationship()
-    tags: Mapped[list[Tag]] = relationship(
-        secondary=event_tags, back_populates="events"
-    )
+
+    def __str__(self) -> str:
+        return self.title
 
 
 class Registration(Base):
@@ -149,4 +136,40 @@ class Registration(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     event: Mapped[Event] = relationship()
+    user: Mapped[User] = relationship()
+
+class LoginAttempt(Base):
+    __tablename__ = "login_attempts"
+    __table_args__ = (
+        Index("login_attempts_email_attempted_at_idx", "email", "attempted_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Identity(always=True), primary_key=True)
+    email: Mapped[str]
+    attempted_at: Mapped[datetime] = mapped_column(server_default=func.now(), index=True)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id: Mapped[int] = mapped_column(Identity(always=True), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    action: Mapped[str]
+    identity: Mapped[str]
+    object_id: Mapped[str | None]
+    changes: Mapped[dict] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+
+    user: Mapped[User | None] = relationship()
+
+
+class AuthSession(Base):
+    __tablename__ = "session"
+
+    id: Mapped[int] = mapped_column(Identity(always=True), primary_key=True)
+    token_hash: Mapped[str] = mapped_column(unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    expires_at: Mapped[datetime]
+
     user: Mapped[User] = relationship()
